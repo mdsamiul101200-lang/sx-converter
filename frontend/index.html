@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STRIKE CONVERTER — Universal File Converter</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Orbitron:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- JSZip and jsPDF Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        :root {
+            --bg-base: #020617;
+            --bg-surface: rgba(15, 23, 42, 0.85);
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --bg-input: rgba(15, 23, 42, 0.95);
+
+            --accent-cyan: #00f2fe;
+            --accent-blue: #4facfe;
+            --accent-cyan-glow: rgba(0, 242, 254, 0.4);
+            --accent-violet: #8b5cf6;
+            --accent-emerald: #10b981;
+
+            --border-subtle: rgba(255, 255, 255, 0.12);
+            --border-bright: rgba(0, 242, 254, 0.3);
+
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+
+            --font-main: 'Plus Jakarta Sans', sans-serif;
+            --font-display: 'Orbitron', sans-serif;
+            --font-mono: 'Fira Code', monospace;
+
+            --radius-md: 16px;
+            --radius-xl: 28px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.5;
+        }
+
+        .ambient-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .cyber-grid {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(to right, rgba(0, 242, 254, 0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 242, 254, 0.04) 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+
+        .glow-top-left {
+            position: absolute;
+            top: -15%; left: -15%;
+            width: 60vw; height: 60vh;
+            background: radial-gradient(circle, var(--accent-cyan-glow) 0%, transparent 70%);
+            filter: blur(100px);
+        }
+
+        .glow-bottom-right {
+            position: absolute;
+            bottom: -15%; right: -15%;
+            width: 60vw; height: 60vh;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%);
+            filter: blur(100px);
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 850px;
+            margin: 0 auto;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            flex: 1;
+        }
+
+        .glass-panel {
+            background: var(--bg-surface);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border-bright);
+            border-radius: var(--radius-xl);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-cyan), var(--accent-violet), transparent);
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.2rem 1.5rem;
+        }
+
+        .brand-title {
+            font-family: var(--font-display);
+            font-size: 1.4rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #ffffff, var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-subtitle {
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            letter-spacing: 2px;
+        }
+
+        .dropzone {
+            border: 2px dashed var(--border-bright);
+            border-radius: var(--radius-md);
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.5);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .dropzone:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 242, 254, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .dropzone-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 1rem;
+            border-radius: 50%;
+            background: rgba(0, 242, 254, 0.1);
+            border: 1px solid var(--border-bright);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-cyan);
+            box-shadow: 0 0 20px var(--accent-cyan-glow);
+        }
+
+        .file-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.25rem;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid var(--border-bright);
+            border-radius: var(--radius-md);
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .file-icon {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(0,242,254,0.2), rgba(139,92,246,0.2));
+            display: flex; align-items: center; justify-content: center;
+            color: var(--accent-cyan);
+        }
+
+        .selectors-grid {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 1rem;
+            align-items: center;
+            margin-top: 1.5rem;
+        }
+
+        .arrow-box {
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 1px solid var(--border-bright);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--accent-cyan);
+            margin: auto;
+            box-shadow: 0 0 15px rgba(0,242,254,0.2);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-label {
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .form-control {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 0.9rem 1rem;
+            color: var(--text-main);
+            font-family: var(--font-main);
+            font-size: 0.95rem;
+            outline: none;
+            width: 100%;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-cyan);
+        }
+
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2300f2fe' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            padding-right: 2.5rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            padding: 0.9rem 1.5rem;
+            border-radius: var(--radius-md);
+            font-family: var(--font-main);
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            color: #020617;
+            box-shadow: 0 4px 25px var(--accent-cyan-glow);
+            width: 100%;
+            padding: 1.15rem;
+            font-family: var(--font-display);
+            letter-spacing: 1.5px;
+            margin-top: 1.5rem;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 242, 254, 0.6);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-chrome {
+            background: linear-gradient(135deg, #ff416c, #ff4b2b);
+            color: #ffffff;
+            width: 100%;
+            padding: 1.1rem;
+            font-family: var(--font-display);
+            letter-spacing: 1px;
+            box-shadow: 0 4px 25px rgba(255, 65, 108, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-decoration: none;
+        }
+
+        .btn-chrome:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 35px rgba(255, 65, 108, 0.6);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            border-color: var(--border-subtle);
+            color: var(--text-main);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(51, 65, 85, 0.8);
+        }
+
+        .progress-box {
+            text-align: center;
+            padding: 2rem 1rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .progress-bar-outer {
+            width: 100%;
+            height: 10px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .progress-bar-inner {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-violet));
+            transition: width 0.3s ease;
+            box-shadow: 0 0 15px var(--accent-cyan);
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem 1.1rem;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 1.5rem; right: 1.5rem;
+            z-index: 999;
+            display: flex; flex-direction: column; gap: 0.5rem;
+        }
+
+        .toast {
+            background: #090d16;
+            border: 1px solid var(--accent-cyan);
+            padding: 0.9rem 1.3rem;
+            border-radius: var(--radius-md);
+            color: white;
+            font-size: 0.85rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+
+        @media (max-width: 640px) {
+            .selectors-grid { grid-template-columns: 1fr; }
+            .arrow-box { transform: rotate(90deg); }
+            .glass-panel { padding: 1.25rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-bg">
+        <div class="cyber-grid"></div>
+        <div class="glow-top-left"></div>
+        <div class="glow-bottom-right"></div>
+    </div>
+
+    <div class="app-container">
+
+        <!-- HEADER -->
+        <header class="glass-panel header">
+            <div>
+                <div class="brand-title">STRIKE CONVERTER</div>
+                <div class="brand-subtitle">UNIVERSAL FILE CONVERSION SYSTEM</div>
+            </div>
+            <div style="color: var(--accent-cyan);"><i data-lucide="zap"></i></div>
+        </header>
+
+        <!-- MAIN CONVERSION PANEL -->
+        <main class="glass-panel">
+            
+            <!-- STEP 1: FILE PICKER -->
+            <div id="file-selection-area">
+                <input type="file" id="file-input" style="display: none;">
+                
+                <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+                    <div class="dropzone-icon">
+                        <i data-lucide="upload-cloud"></i>
+                    </div>
+                    <div style="font-weight: 800; font-size: 1.15rem;">Choose File from Device</div>
+                    <div style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">
+                        Click here to select any application or file
+                    </div>
+                </div>
+
+                <!-- Selected File Info -->
+                <div class="file-card" id="file-card" style="display: none;">
+                    <div class="file-info">
+                        <div class="file-icon"><i data-lucide="file"></i></div>
+                        <div>
+                            <div id="file-name" style="font-weight: 700;">filename.ext</div>
+                            <div id="file-size" style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">0 KB</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" onclick="resetFile()" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                        Change
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 2: SELECTORS -->
+            <div class="selectors-grid">
+                <!-- Option 1: Source Selector -->
+                <div class="form-group">
+                    <label class="form-label"><i data-lucide="file-input"></i> Select To</label>
+                    <select id="select-source" class="form-control" onchange="onSourceChange()">
+                        <option value="" disabled selected>Choose Format</option>
+                        <option value="HTML">HTML</option>
+                        <option value="PDF">PDF</option>
+                        <option value="APK">APK</option>
+                        <option value="ZIP">ZIP</option>
+                        <option value="JPG">JPG</option>
+                        <option value="PNG">PNG</option>
+                        <option value="WEBP">WEBP</option>
+                        <option value="TXT">TXT</option>
+                        <option value="JSON">JSON</option>
+                    </select>
+                </div>
+
+                <div class="arrow-box">
+                    <i data-lucide="arrow-right"></i>
+                </div>
+
+                <!-- Option 2: Target Selector -->
+                <div class="form-group">
+                    <label class="form-label"><i data-lucide="file-output"></i> Convert to</label>
+                    <select id="select-target" class="form-control" disabled onchange="onTargetChange()">
+                        <option value="" disabled selected>Choose Target</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- STEP 3: CONVERT BUTTON -->
+            <button class="btn btn-primary" id="btn-convert" disabled onclick="processConversion()">
+                <i data-lucide="zap"></i> CONVERT NOW
+            </button>
+
+            <!-- CONVERSION PROGRESS & DOWNLOAD AREA -->
+            <div id="conversion-progress-area" style="display: none;" class="progress-box">
+                <div style="font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; color: var(--accent-cyan);" id="progress-status">
+                    Processing...
+                </div>
+                
+                <div class="progress-bar-outer">
+                    <div class="progress-bar-inner" id="progress-bar"></div>
+                </div>
+
+                <!-- DOWNLOAD CONTAINER -->
+                <div id="download-container" style="display: none; margin-top: 0.5rem;">
+                    
+                    <!-- 1st Button: Safe Download Trigger -->
+                    <button class="btn btn-chrome" id="main-download-btn" onclick="executeSafeDownload()" style="margin-bottom: 0.85rem;">
+                        <i data-lucide="download"></i> DOWNLOAD FILE
+                    </button>
+
+                    <!-- 2nd Button: Convert Another File -->
+                    <button class="btn btn-secondary" onclick="resetAll()" style="width: 100%;">
+                        Convert Another File
+                    </button>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- HISTORY SECTION -->
+        <section class="glass-panel" style="padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div style="font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-lucide="history" style="color: var(--accent-cyan);"></i> Conversion History
+                </div>
+                <button class="btn btn-secondary" onclick="clearHistory()" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">CLEAR</button>
+            </div>
+            <div id="history-container">
+                <div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1rem;">No history found.</div>
+            </div>
+        </section>
+
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        var selectedFile = null;
+        var generatedDataUrl = null;
+        var convertedFilename = "";
+        var historyList = JSON.parse(localStorage.getItem('strike_history_v7') || '[]');
+
+        var supportedFormats = ["HTML", "PDF", "APK", "ZIP", "JPG", "PNG", "WEBP", "TXT", "JSON"];
+
+        window.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+            renderHistory();
+
+            var fileInput = document.getElementById('file-input');
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+        });
+
+        function handleFile(file) {
+            selectedFile = file;
+            document.getElementById('file-name').innerText = file.name;
+            document.getElementById('file-size').innerText = (file.size / 1024).toFixed(1) + " KB";
+            
+            document.getElementById('dropzone').style.display = 'none';
+            document.getElementById('file-card').style.display = 'flex';
+
+            var ext = file.name.split('.').pop().toUpperCase();
+            var sourceSelect = document.getElementById('select-source');
+            
+            if (supportedFormats.indexOf(ext) !== -1) {
+                sourceSelect.value = ext;
+            } else {
+                sourceSelect.value = "TXT";
+            }
+            onSourceChange();
+            showToast("File selected successfully");
+        }
+
+        function resetFile() {
+            selectedFile = null;
+            document.getElementById('file-input').value = "";
+            document.getElementById('dropzone').style.display = 'block';
+            document.getElementById('file-card').style.display = 'none';
+            document.getElementById('select-target').disabled = true;
+            document.getElementById('btn-convert').disabled = true;
+        }
+
+        function onSourceChange() {
+            var src = document.getElementById('select-source').value;
+            var targetSelect = document.getElementById('select-target');
+            
+            targetSelect.innerHTML = '<option value="" disabled selected>Choose Target</option>';
+            
+            for (var i = 0; i < supportedFormats.length; i++) {
+                if (supportedFormats[i] !== src) {
+                    var opt = document.createElement('option');
+                    opt.value = supportedFormats[i];
+                    opt.innerText = supportedFormats[i];
+                    targetSelect.appendChild(opt);
+                }
+            }
+
+            targetSelect.disabled = false;
+            document.getElementById('btn-convert').disabled = true;
+        }
+
+        function onTargetChange() {
+            document.getElementById('btn-convert').disabled = false;
+        }
+
+        function processConversion() {
+            if (!selectedFile) return;
+
+            var src = document.getElementById('select-source').value;
+            var tgt = document.getElementById('select-target').value;
+
+            document.getElementById('conversion-progress-area').style.display = 'flex';
+            document.getElementById('download-container').style.display = 'none';
+            document.getElementById('btn-convert').disabled = true;
+
+            var progressBar = document.getElementById('progress-bar');
+            var progressStatus = document.getElementById('progress-status');
+
+            progressStatus.innerText = "Analyzing file structure...";
+            progressBar.style.width = "40%";
+
+            var lastDot = selectedFile.name.lastIndexOf('.');
+            var baseName = (lastDot !== -1) ? selectedFile.name.substring(0, lastDot) : selectedFile.name;
+            convertedFilename = baseName + "." + tgt.toLowerCase();
+
+            setTimeout(function() {
+                progressBar.style.width = "80%";
+                progressStatus.innerText = "Converting to " + tgt + "...";
+
+                executeConversionEngine(selectedFile, src, tgt, function(dataUrl) {
+                    generatedDataUrl = dataUrl;
+                    progressBar.style.width = "100%";
+                    progressStatus.innerText = "Conversion Successful!";
+
+                    document.getElementById('download-container').style.display = 'block';
+
+                    saveHistory(selectedFile.name, src, tgt, convertedFilename);
+                    showToast("Ready for Safe Download!");
+                });
+            }, 600);
+        }
+
+        // Functional Conversion Engine returning Data URI to prevent Acode Crash
+        function executeConversionEngine(file, src, tgt, callback) {
+            var reader = new FileReader();
+
+            // HTML to PDF
+            if (src === "HTML" && tgt === "PDF") {
+                reader.onload = function(e) {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    var text = e.target.result;
+                    
+                    var lines = doc.splitTextToSize(text.replace(/<[^>]*>?/gm, ''), 180);
+                    doc.text(lines, 10, 10);
+                    
+                    var pdfDataUri = doc.output('datauristring');
+                    callback(pdfDataUri);
+                };
+                reader.readAsText(file);
+                return;
+            }
+
+            // Image Conversion
+            if (["JPG", "PNG", "WEBP"].indexOf(src) !== -1 && ["JPG", "PNG", "WEBP"].indexOf(tgt) !== -1) {
+                reader.onload = function(e) {
+                    var img = new Image();
+                    img.onload = function() {
+                        var canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        var ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+
+                        var mime = 'image/jpeg';
+                        if (tgt === 'PNG') mime = 'image/png';
+                        if (tgt === 'WEBP') mime = 'image/webp';
+
+                        var dataUrl = canvas.toDataURL(mime, 0.9);
+                        callback(dataUrl);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+                return;
+            }
+
+            // Universal Base64 Data-URI Handler for All Files
+            reader.onload = function(e) {
+                var mimeType = 'application/octet-stream';
+                if (tgt === 'PDF') mimeType = 'application/pdf';
+                if (tgt === 'APK') mimeType = 'application/vnd.android.package-archive';
+                if (tgt === 'HTML') mimeType = 'text/html';
+                if (tgt === 'TXT') mimeType = 'text/plain';
+                if (tgt === 'JSON') mimeType = 'application/json';
+
+                var base64 = e.target.result.split(',')[1];
+                var dataUrl = "data:" + mimeType + ";base64," + base64;
+                callback(dataUrl);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Anti-Crash Safe Download Handler
+        function executeSafeDownload() {
+            if (!generatedDataUrl) return;
+
+            try {
+                // Method 1: Clean Anchor Element Injection
+                var link = document.createElement('a');
+                link.href = generatedDataUrl;
+                link.download = convertedFilename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (err) {
+                // Method 2: Direct Window Opening fallback
+                window.location.href = generatedDataUrl;
+            }
+
+            showToast("Downloading File...");
+        }
+
+        function resetAll() {
+            resetFile();
+            document.getElementById('conversion-progress-area').style.display = 'none';
+            document.getElementById('progress-bar').style.width = '0%';
+        }
+
+        function saveHistory(orig, src, tgt, out) {
+            var timeStr = new Date().toLocaleTimeString();
+            historyList.unshift({ orig: orig, src: src, tgt: tgt, out: out, time: timeStr });
+            if (historyList.length > 10) historyList.pop();
+            localStorage.setItem('strike_history_v7', JSON.stringify(historyList));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            var container = document.getElementById('history-container');
+            if (!historyList.length) {
+                container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1rem;">No history found.</div>';
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < historyList.length; i++) {
+                var item = historyList[i];
+                html += '<div class="history-item">' +
+                            '<div>' +
+                                '<div style="font-weight:600;">' + item.orig + '</div>' +
+                                '<div style="color:var(--text-muted); font-size:0.75rem;">' + item.src + ' → ' + item.tgt + ' (' + item.time + ')</div>' +
+                            '</div>' +
+                            '<div style="color:var(--accent-emerald); font-weight:700;">COMPLETED</div>' +
+                        '</div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function clearHistory() {
+            historyList = [];
+            localStorage.removeItem('strike_history_v7');
+            renderHistory();
+            showToast("History cleared");
+        }
+
+        function showToast(msg) {
+            var container = document.getElementById('toast-container');
+            var toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = msg;
+            container.appendChild(toast);
+            setTimeout(function() { toast.remove(); }, 3000);
+        }
+    </script>
+</body>
+</html
